@@ -24,48 +24,28 @@ jobs:
           pip install -r requirements.txt
 
       - name: 运行监控
-        id: monitor
         env:
           DINGTALK_TOKEN: ${{ secrets.DINGTALK_TOKEN }}
           DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
-          FEISHU_BOT_URL: ${{ secrets.FEISHU_BOT_URL }}
-          FEISHU_BOT_SECRET: ${{ secrets.FEISHU_BOT_SECRET }}
-          LANQIAO_DATA: ${{ secrets.LANQIAO_DATA }}
-          USE_GITHUB_SECRETS: "true"
+          ENABLE_DINGTALK: "true"
+          ENABLE_FEISHU: "false"
         run: |
           python main.py
 
-      - name: 更新历史数据到Secrets
-        if: steps.monitor.outputs.lanqiao_data
-        uses: actions/github-script@v7
-        env:
-          NEW_DATA: ${{ steps.monitor.outputs.lanqiao_data }}
-        with:
-          script: |
-            const crypto = require('crypto');
-            const newData = process.env.NEW_DATA;
-            
-            const { data: { key, key_id } } = await github.rest.actions.getRepoPublicKey({
-              owner: context.repo.owner,
-              repo: context.repo.repo
-            });
-            
-            const publicKey = Buffer.from(key, 'base64');
-            const encrypted = crypto.publicEncrypt(
-              {
-                key: publicKey,
-                padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-                oaepHash: 'sha256'
-              },
-              Buffer.from(newData)
-            );
-            
-            await github.rest.actions.createOrUpdateRepoSecret({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              secret_name: 'LANQIAO_DATA',
-              key_id: key_id,
-              encrypted_value: encrypted.toString('base64')
-            });
-            
-            console.log('LANQIAO_DATA secret updated successfully')
+      - name: 检查数据文件是否更新
+        id: check_update
+        run: |
+          if git diff --name-only | grep -q "lanqiao_data.json"; then
+            echo "updated=true" >> $GITHUB_OUTPUT
+          else
+            echo "updated=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 提交数据文件
+        if: steps.check_update.outputs.updated == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add lanqiao_data.json
+          git commit -m "Update lanqiao_data.json"
+          git push

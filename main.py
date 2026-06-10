@@ -466,13 +466,14 @@ class LanQiaoMonitor:
 if __name__ == "__main__":
     url = "https://www.guoxinlanqiao.com/api/news/find?status=1&project=dasai&progid=20&pageno=1&pagesize=10"
 
-    use_github_secrets = os.environ.get("USE_GITHUB_SECRETS", "false").lower() == "true"
+    enable_dingtalk = os.environ.get("ENABLE_DINGTALK", "true").lower() == "true"
+    enable_feishu = os.environ.get("ENABLE_FEISHU", "false").lower() == "true"
 
     monitor = LanQiaoMonitor(
         url,
-        enable_dingtalk=True,
-        enable_feishu=True,
-        use_github_secrets=use_github_secrets,
+        enable_dingtalk=enable_dingtalk,
+        enable_feishu=enable_feishu,
+        use_github_secrets=False,
     )
 
     monitor.print_welcome()
